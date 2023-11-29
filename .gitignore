@@ -1,0 +1,23 @@
+# Local files
+.DS_Store
+
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+build
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+# Resources
+!lambda/*.js
+.env
+
+# Test
+coverage
+
+# Documentation
+out
+docs
