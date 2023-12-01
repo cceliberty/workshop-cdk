@@ -37,37 +37,43 @@ The file in `~/.aws/credentials` should contain AWS credentials.
 ```toml
 # ~/.aws/credentials
 
-# CENTRAL_ACCOUNT_PROFILE_NAME is the name of the profile you use to connect to your company. It can be any string
+# DEFAULT_PROFILE is the name of the profile you use to connect to your company. It can be any string
 
-[CENTRAL_ACCOUNT_PROFILE_NAME]
+[DEFAULT_PROFILE]
 aws_access_key_id = AAAAAAAAAAAAAAAAAAAA
 aws_secret_access_key = zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
 ```
 
 > [!Note]
-> To test if your credentials are set correctly run on terminal: `$ aws s3 ls --profile CENTRAL_ACCOUNT_PROFILE_NAME` to see the S3 Buckets on the company account.
+> To test if your credentials are set correctly run on terminal:
+> `$ aws s3 ls --profile DEFAULT_PROFILE` to see the S3 Buckets on the `DEFAULT_PROFILE` account.
 
 ## AWS Profile Configuration:
 
-The file in `~/.aws/config` should specify a profile `TARGET_ACCOUNT_PROFILE_NAME` that assumes the role `OrganizationAccountAccessRole` in the account `TARGET_ACCOUNT_ID` using your company's credentials.
-Replace `CENTRAL_ACCOUNT_PROFILE_NAME` with the same value used above.
+> [!IMPORTANT]
+> Add `[profile TARGET_PROFILE]` block into `~/.aws/config`.
+
+The file in `~/.aws/config` should specify a profile `TARGET_PROFILE` that assumes the role `OrganizationAccountAccessRole` in the account `TARGET_ACCOUNT_ID` using your company's credentials.
+Replace `DEFAULT_PROFILE` with the same value used above.
 
 ```toml
 # ~/.aws/config
-
-[profile CENTRAL_ACCOUNT_PROFILE_NAME]
+# ✅ Verify that this is correct
+[profile DEFAULT_PROFILE]
 region = eu-west-1
 cli_pager =
 
+# ➕ 👇 Add this block
 # TARGET_ACCOUNT_ID is the account ID you want to connect to
-# TARGET_ACCOUNT_PROFILE_NAME can be any string
-[profile TARGET_ACCOUNT_PROFILE_NAME]
+# TARGET_PROFILE can be any string
+[profile TARGET_PROFILE]
 region = eu-west-1
 role_arn = arn:aws:iam::TARGET_ACCOUNT_ID:role/OrganizationAccountAccessRole
-source_profile = CENTRAL_ACCOUNT_PROFILE_NAME
+source_profile = DEFAULT_PROFILE
 ```
 
 > [!Note]
-> To test if your credentials are set correctly run on terminal: `$ aws s3 ls --profile TARGET_ACCOUNT_PROFILE_NAME` to see the S3 Buckets on the `TARGET_ACCOUNT_PROFILE_NAME` account.
+> To test if your credentials are set correctly run on terminal: 
+> `$ aws s3 ls --profile TARGET_PROFILE` to see the S3 Buckets on the `TARGET_PROFILE` account.
 
 # ⚗️ Project
