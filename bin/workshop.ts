@@ -4,12 +4,21 @@ import { Construct } from 'constructs';
 
 const app = new App();
 
-interface MyStackProps extends StackProps {
+const config = {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION,
+  },
+  baseName: 'cc',
+  topicName: 'orders-updated',
+};
+
+interface SubscriberProps extends StackProps {
   topicName: string;
 }
 
-export class MyStack extends Stack {
-  constructor(scope: Construct, id: string, props: MyStackProps) {
+export class Subscriber extends Stack {
+  constructor(scope: Construct, id: string, props: SubscriberProps) {
     super(scope, id, props);
 
     const { topicName } = props;
@@ -18,6 +27,9 @@ export class MyStack extends Stack {
   }
 }
 
-new MyStack(app, 'my-stack', { topicName: 'my-topic' });
+new Subscriber(app, `${config.baseName}-sub`, { topicName: `${config.baseName}-topic-name` });
 
-app.synth();
+/**
+ * Publisher
+ */
+// new Publisher(app, 'pub', { topics: config.topicNames });
