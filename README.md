@@ -77,3 +77,7 @@ source_profile = DEFAULT_PROFILE
 > `$ aws s3 ls --profile TARGET_PROFILE` to see the S3 Buckets on the `TARGET_PROFILE` account.
 
 # ⚗️ Project
+
+> Create `Workers` Stacks to consume from published SNS Topics
+
+![](./imgs/goal-arch.drawio.png)
