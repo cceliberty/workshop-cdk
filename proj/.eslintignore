@@ -1,0 +1,16 @@
+cdk.out
+node_modules
+.env
+docs
+img
+*.d.ts
+*.js
+coverage
+out
+
+# Static files
+static-files/**/*.json
+lib/staticFiles/**/*.json
+
+#Python
+*.lock
