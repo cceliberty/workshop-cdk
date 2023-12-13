@@ -1,6 +1,5 @@
-import { App, Stack, StackProps } from 'aws-cdk-lib';
-import { Topic } from 'aws-cdk-lib/aws-sns';
-import { Construct } from 'constructs';
+import { App } from 'aws-cdk-lib';
+import { Subscriber } from '../lib/worker';
 
 const app = new App();
 
@@ -13,21 +12,7 @@ const config = {
   topicName: 'orders-updated',
 };
 
-interface SubscriberProps extends StackProps {
-  topicName: string;
-}
-
-export class Subscriber extends Stack {
-  constructor(scope: Construct, id: string, props: SubscriberProps) {
-    super(scope, id, props);
-
-    const { topicName } = props;
-
-    new Topic(this, 'my-topic', { topicName });
-  }
-}
-
-new Subscriber(app, `${config.baseName}-sub`, { topicName: `${config.baseName}-topic-name` });
+new Subscriber(app, `${config.baseName}-worker`, { env: config.env, topicName: config.topicName });
 
 /**
  * Publisher

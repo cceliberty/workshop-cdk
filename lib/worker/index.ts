@@ -1,6 +1,7 @@
 import { Arn, Environment, Stack } from 'aws-cdk-lib';
 import { ITopic, Topic } from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
 
 interface SubscriberProps {
   env: Environment;
@@ -19,10 +20,10 @@ export class Subscriber extends Stack {
     const { env, topicName } = props;
 
     // Retrieve existing SNS
-    const topic = this.getTopicArn(id, env, topicName);
-    console.log('topic', topic);
+    this.getTopicArn(id, env, topicName);
 
     // Create new SQS
+    new Queue(this, `${id}-queue`, { queueName: `${id}-q` });
 
     // Add subscription on SNS ==> SQS
 
