@@ -1,7 +1,10 @@
-import { Arn, Environment, Stack } from 'aws-cdk-lib';
+import { Arn, Duration, Environment, Stack } from 'aws-cdk-lib';
 import { ITopic, Topic } from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { SqsSubscription } from 'aws-cdk-lib/aws-sns-subscriptions';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 interface SubscriberProps {
   env: Environment;
@@ -20,14 +23,24 @@ export class Subscriber extends Stack {
     const { env, topicName } = props;
 
     // Retrieve existing SNS
-    this.getTopicArn(id, env, topicName);
+    const t = this.getTopicArn(id, env, topicName);
 
     // Create new SQS
-    new Queue(this, `${id}-queue`, { queueName: `${id}-q` });
+    const q = new Queue(this, `${id}-queue`, { queueName: `${id}-q` });
 
     // Add subscription on SNS ==> SQS
+    t.addSubscription(new SqsSubscription(q));
 
     // Create new Lambda
+    new NodejsFunction(this, `${id}-handler`, {
+      runtime: Runtime.NODEJS_18_X,
+      timeout: Duration.seconds(10),
+      functionName: `${id}-handler`,
+      entry: `${__dirname}/lambda/${topicName}.ts`,
+      environment: {
+        QUEUE_URL: q.queueUrl,
+      },
+    });
 
     // Add event source on Lambda <== SQS
   }
