@@ -9,7 +9,7 @@ interface PublisherProps extends StackProps {
 /**
  * Publisher creates an AWS resource with a SNS Topic
  *
- * This is only for project setup
+ * Prototype-based Class (javascript) vs Class-based Inheritance (java)
  */
 export class Publisher extends Stack {
   constructor(scope: Construct, id: string, props: PublisherProps) {

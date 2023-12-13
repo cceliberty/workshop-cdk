@@ -1,7 +1,6 @@
 import { App } from 'aws-cdk-lib';
 import { Subscriber } from '../lib/worker';
-
-const app = new App();
+import { Publisher } from '../lib/publisher';
 
 const config = {
   env: {
@@ -9,12 +8,25 @@ const config = {
     region: process.env.CDK_DEFAULT_REGION,
   },
   baseName: 'cc',
-  topicName: 'orders-updated',
+  topicNames: ['orders-updated', 'contacts-updated', 'users-updated'],
 };
 
-new Subscriber(app, `${config.baseName}-worker`, { env: config.env, topicName: config.topicName });
+/** Head of tree */
+const app = new App();
+
+/**
+ * Subscriber
+ */
+const { env, baseName, topicNames } = config;
+const stackName = `${baseName}-sub`;
+new Subscriber(app, stackName, {
+  description: 'Workers that subscribe to redpill table orders',
+  topicNames,
+  env,
+  stackName,
+});
 
 /**
  * Publisher
  */
-// new Publisher(app, 'pub', { topics: config.topicNames });
+new Publisher(app, 'pub', { topics: config.topicNames });
