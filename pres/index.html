@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+
+    <title>CDK 🏗️</title>
+
+    <link rel="stylesheet" href="dist/reset.css" />
+    <link rel="stylesheet" href="dist/reveal.css" />
+    <link rel="stylesheet" href="dist/theme/night.css" />
+
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href="plugin/highlight/gruvbox.css" />
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <!--
+          Why (5 mins)
+          Briefly introduce Infrastructure as Code (IaC) and its importance.
+          Explain how IaC helps in managing and provisioning infrastructure through code.
+
+          What (10 mins)
+          Introduction to AWS Cloud Development Kit (CDK).
+          Highlight key features and benefits.
+
+          Principles of Infrastructure as Code (15 mins)
+          Declarative vs. Imperative: Explain the difference between declarative and imperative IaC.
+          Idempotency: Discuss why idempotency is crucial in IaC and how it relates to CDK.
+          Version Control: Emphasize the importance of version controlling infrastructure code.
+
+          CDK Architecture and Components (20 mins)
+          Constructs: Explanation of CDK constructs and how they represent AWS resources.
+          Stages in CDK Workflow: Overview of how CDK code is developed, synthesized, and deployed.
+          Programming Languages: Discuss the various programming languages supported by CDK (e.g., TypeScript, Python, Java).
+
+          CDK CLI and Commands (10 mins)
+          Demonstrate basic CDK commands and how to use the CDK CLI.
+          Showcase how to initialize a CDK project.
+
+          Best Practices and Tips (10 mins)
+          Share best practices for writing CDK code.
+          Tips for managing dependencies and handling updates.
+
+          CDK Ecosystem and Extensions (10 mins)
+          Explore the CDK ecosystem and available libraries/extensions.
+          Discuss how to leverage existing CDK constructs and contribute to the community.
+
+          Q&A and Discussion (10 mins)
+          Open the floor for questions and engage in discussions about CDK.
+
+          CDK? CloudFormation > Creation of AWS resources
+          Project file structure
+          Deploying first stack
+          Project description
+          TDD: Adding Topic and deploying
+          TDD: Adding SQS and deploying
+          TDD: Adding Lambda and deploying
+          TDD: Add Aspect to add tags to resources and set log levels (test with https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.assertions-readme.html#asserting-annotations)
+          TDD: Create a configuration to deploy multiple copies of Stack
+          TDD: Create a Fargate Service
+          Use cases:
+            - pg-bridge-update-* (simple contained)
+            - CRM (single account application)
+            - EventBridge (multi account simple application)
+            - Datalake (multi account, composable application)
+            - BWP 
+        -->
+
+        <!-- Cover -->
+        <section>
+          <h1>CDK 🏗️</h1>
+          <p><small>2023-12-06</small></p>
+        </section>
+
+        <!-- Agenda -->
+        <section id="fragments">
+          <h3>Agenda</h3>
+          <ul>
+            <li class="fragment">CDK 5 W's</li>
+            <li class="fragment">Project structure</li>
+            <li class="fragment">Deploy</li>
+            <li class="fragment">Test</li>
+            <li class="fragment">Create Stack and Construct</li>
+            <li class="fragment">Refactor</li>
+            <li class="fragment">Repeat</li>
+          </ul>
+        </section>
+
+        <!-- 5 W's -->
+        <section>
+          <h3>5 W's CDK</h3>
+          <!-- What CDK -->
+          <!-- IaC / CF -->
+          <section data-auto-animate>
+            <h4>What CDK / IaC?</h4>
+
+            <ul class="fragments" style="text-align: left">
+              <li class="fragment">
+                Infrastructure as Code (IaC)
+                <br />
+                [<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://www.puppet.com/why-puppet/about-puppet#paragraph-1320"
+                  >2009, puppet</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://en.wikipedia.org/wiki/Progress_Chef"
+                >
+                  2009, chef</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://en.wikipedia.org/wiki/Ansible_(software)"
+                >
+                  2012, ansible</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://github.com/hashicorp/terraform/releases/tag/v0.1.0"
+                >
+                  2012, tf v0.1.0</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://github.com/hashicorp/terraform/releases/tag/v1.0.0"
+                >
+                  2021, tf v1.0.0</a
+                >]
+              </li>
+              <li class="fragment">
+                AWS Cloud Formation [<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/ReleaseHistory.html"
+                  >20011, aws cf</a
+                >]
+              </li>
+            </ul>
+
+            <aside class="notes">
+              [IaC] - SW dev principles to infrastructure - repeat, test,
+              verify, version controlling
+              <br />
+              Generic tools to CDK
+            </aside>
+          </section>
+          <!-- CloudFormation Example -->
+          <section data-auto-animate>
+            <p style="font-size: large">
+              Cloud Formation:
+              <span>
+                ECS container with autoscaling and an application load
+                balancer</span
+              >
+            </p>
+            <pre><code class="hljs json"><script type="text/template">
+  {
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "KeyName": {
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+        },
+        "VpcId": {
+            "Type": "AWS::EC2::VPC::Id",
+            "Description": "Select a VPC that allows instances to access the Internet."
+        },
+        "SubnetId": {
+            "Type": "List<AWS::EC2::Subnet::Id>",
+            "Description": "Select at least two subnets in your selected VPC."
+        },
+        "DesiredCapacity": {
+            "Type": "Number",
+            "Default": "1",
+            "Description": "Number of instances to launch in your ECS cluster."
+        },
+        "MaxSize": {
+            "Type": "Number",
+            "Default": "1",
+            "Description": "Maximum number of instances that can be launched in your ECS cluster."
+        },
+        "InstanceType": {
+            "Description": "EC2 instance type",
+            "Type": "String",
+            "Default": "t2.micro",
+            "AllowedValues": [
+                "t2.micro",
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "c3.large",
+                "c3.xlarge",
+                "c3.2xlarge",
+                "c3.4xlarge",
+                "c3.8xlarge",
+                "r3.large",
+                "r3.xlarge",
+                "r3.2xlarge",
+                "r3.4xlarge",
+                "r3.8xlarge",
+                "i2.xlarge",
+                "i2.2xlarge",
+                "i2.4xlarge",
+                "i2.8xlarge"
+            ],
+            "ConstraintDescription": "Please choose a valid instance type."
+        }
+    },
+    "Mappings": {
+        "AWSRegionToAMI": {
+            "us-east-1": {
+                "AMIID": "ami-09bee01cc997a78a6"
+            },
+            "us-east-2": {
+                "AMIID": "ami-0a9e12068cb98a01d"
+            },
+            "us-west-1": {
+                "AMIID": "ami-0fa6c8d131a220017"
+            },
+            "us-west-2": {
+                "AMIID": "ami-078c97cf1cefd1b38"
+            },
+            "eu-west-1": {
+                "AMIID": "ami-0c9ef930279337028"
+            },
+            "eu-central-1": {
+                "AMIID": "ami-065c1e34da68f2b02"
+            },
+            "ap-northeast-1": {
+                "AMIID": "ami-02265963d1614d04d"
+            },
+            "ap-southeast-1": {
+                "AMIID": "ami-0b68661b29b9e058c"
+            },
+            "ap-southeast-2": {
+                "AMIID": "ami-00e4b147599c13588"
+            }
+        }
+    },
+    "Resources": {
+        "ECSCluster": {
+            "Type": "AWS::ECS::Cluster"
+        },
+        "EcsSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "ECS Security Group",
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            }
+        },
+        "EcsSecurityGroupHTTPinbound": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "EcsSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 80,
+                "ToPort": 80,
+                "CidrIp": "0.0.0.0/0"
+            }
+        },
+        "EcsSecurityGroupSSHinbound": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "EcsSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 22,
+                "ToPort": 22,
+                "CidrIp": "0.0.0.0/0"
+            }
+        },
+        "EcsSecurityGroupALBports": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "EcsSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 31000,
+                "ToPort": 61000,
+                "SourceSecurityGroupId": {
+                    "Ref": "EcsSecurityGroup"
+                }
+            }
+        },
+        "CloudwatchLogsGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": {
+                    "Fn::Join": [
+                        "-",
+                        [
+                            "ECSLogGroup",
+                            {
+                                "Ref": "AWS::StackName"
+                            }
+                        ]
+                    ]
+                },
+                "RetentionInDays": 14
+            }
+        },
+        "taskdefinition": {
+            "Type": "AWS::ECS::TaskDefinition",
+            "Properties": {
+                "Family": {
+                    "Fn::Join": [
+                        "",
+                        [
+                            {
+                                "Ref": "AWS::StackName"
+                            },
+                            "-ecs-demo-app"
+                        ]
+                    ]
+                },
+                "ContainerDefinitions": [
+                    {
+                        "Name": "simple-app",
+                        "Cpu": "10",
+                        "Essential": "true",
+                        "Image": "httpd:2.4",
+                        "Memory": "300",
+                        "LogConfiguration": {
+                            "LogDriver": "awslogs",
+                            "Options": {
+                                "awslogs-group": {
+                                    "Ref": "CloudwatchLogsGroup"
+                                },
+                                "awslogs-region": {
+                                    "Ref": "AWS::Region"
+                                },
+                                "awslogs-stream-prefix": "ecs-demo-app"
+                            }
+                        },
+                        "MountPoints": [
+                            {
+                                "ContainerPath": "/usr/local/apache2/htdocs",
+                                "SourceVolume": "my-vol"
+                            }
+                        ],
+                        "PortMappings": [
+                            {
+                                "ContainerPort": 80
+                            }
+                        ]
+                    },
+                    {
+                        "Name": "busybox",
+                        "Cpu": 10,
+                        "Command": [
+                            "/bin/sh -c \"while true; do echo '<html> <head> <title>Amazon ECS Sample App</title> <style>body {margin-top: 40px; background-color: #333;} </style> </head><body> <div style=color:white;text-align:center> <h1>Amazon ECS Sample App</h1> <h2>Congratulations!</h2> <p>Your application is now running on a container in Amazon ECS.</p>' > top; /bin/date > date ; echo '</div></body></html>' > bottom; cat top date bottom > /usr/local/apache2/htdocs/index.html ; sleep 1; done\""
+                        ],
+                        "EntryPoint": [
+                            "sh",
+                            "-c"
+                        ],
+                        "Essential": false,
+                        "Image": "busybox",
+                        "Memory": 200,
+                        "LogConfiguration": {
+                            "LogDriver": "awslogs",
+                            "Options": {
+                                "awslogs-group": {
+                                    "Ref": "CloudwatchLogsGroup"
+                                },
+                                "awslogs-region": {
+                                    "Ref": "AWS::Region"
+                                },
+                                "awslogs-stream-prefix": "ecs-demo-app"
+                            }
+                        },
+                        "VolumesFrom": [
+                            {
+                                "SourceContainer": "simple-app"
+                            }
+                        ]
+                    }
+                ],
+                "Volumes": [
+                    {
+                        "Name": "my-vol"
+                    }
+                ]
+            }
+        },
+        "ECSALB": {
+            "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "Properties": {
+                "Name": "ECSALB",
+                "Scheme": "internet-facing",
+                "LoadBalancerAttributes": [
+                    {
+                        "Key": "idle_timeout.timeout_seconds",
+                        "Value": "30"
+                    }
+                ],
+                "Subnets": {
+                    "Ref": "SubnetId"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "EcsSecurityGroup"
+                    }
+                ]
+            }
+        },
+        "ALBListener": {
+            "Type": "AWS::ElasticLoadBalancingV2::Listener",
+            "DependsOn": "ECSServiceRole",
+            "Properties": {
+                "DefaultActions": [
+                    {
+                        "Type": "forward",
+                        "TargetGroupArn": {
+                            "Ref": "ECSTG"
+                        }
+                    }
+                ],
+                "LoadBalancerArn": {
+                    "Ref": "ECSALB"
+                },
+                "Port": "80",
+                "Protocol": "HTTP"
+            }
+        },
+        "ECSALBListenerRule": {
+            "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+            "DependsOn": "ALBListener",
+            "Properties": {
+                "Actions": [
+                    {
+                        "Type": "forward",
+                        "TargetGroupArn": {
+                            "Ref": "ECSTG"
+                        }
+                    }
+                ],
+                "Conditions": [
+                    {
+                        "Field": "path-pattern",
+                        "Values": [
+                            "/"
+                        ]
+                    }
+                ],
+                "ListenerArn": {
+                    "Ref": "ALBListener"
+                },
+                "Priority": 1
+            }
+        },
+        "ECSTG": {
+            "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "DependsOn": "ECSALB",
+            "Properties": {
+                "HealthCheckIntervalSeconds": 10,
+                "HealthCheckPath": "/",
+                "HealthCheckProtocol": "HTTP",
+                "HealthCheckTimeoutSeconds": 5,
+                "HealthyThresholdCount": 2,
+                "Name": "ECSTG",
+                "Port": 80,
+                "Protocol": "HTTP",
+                "UnhealthyThresholdCount": 2,
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            }
+        },
+        "ECSAutoScalingGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "VPCZoneIdentifier": {
+                    "Ref": "SubnetId"
+                },
+                "LaunchConfigurationName": {
+                    "Ref": "ContainerInstances"
+                },
+                "MinSize": "1",
+                "MaxSize": {
+                    "Ref": "MaxSize"
+                },
+                "DesiredCapacity": {
+                    "Ref": "DesiredCapacity"
+                }
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Timeout": "PT15M"
+                }
+            },
+            "UpdatePolicy": {
+                "AutoScalingReplacingUpdate": {
+                    "WillReplace": "true"
+                }
+            }
+        },
+        "ContainerInstances": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegionToAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "AMIID"
+                    ]
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "EcsSecurityGroup"
+                    }
+                ],
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "IamInstanceProfile": {
+                    "Ref": "EC2InstanceProfile"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -xe\n",
+                                "echo ECS_CLUSTER=",
+                                {
+                                    "Ref": "ECSCluster"
+                                },
+                                " >> /etc/ecs/ecs.config\n",
+                                "yum install -y aws-cfn-bootstrap\n",
+                                "/opt/aws/bin/cfn-signal -e $? ",
+                                "         --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "         --resource ECSAutoScalingGroup ",
+                                "         --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "service": {
+            "Type": "AWS::ECS::Service",
+            "DependsOn": "ALBListener",
+            "Properties": {
+                "Cluster": {
+                    "Ref": "ECSCluster"
+                },
+                "DesiredCount": "1",
+                "LoadBalancers": [
+                    {
+                        "ContainerName": "simple-app",
+                        "ContainerPort": "80",
+                        "TargetGroupArn": {
+                            "Ref": "ECSTG"
+                        }
+                    }
+                ],
+                "Role": {
+                    "Ref": "ECSServiceRole"
+                },
+                "TaskDefinition": {
+                    "Ref": "taskdefinition"
+                }
+            }
+        },
+        "ECSServiceRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ecs.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyName": "ecs-service",
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                                        "elasticloadbalancing:DeregisterTargets",
+                                        "elasticloadbalancing:Describe*",
+                                        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                                        "elasticloadbalancing:RegisterTargets",
+                                        "ec2:Describe*",
+                                        "ec2:AuthorizeSecurityGroupIngress"
+                                    ],
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "ServiceScalingTarget": {
+            "Type": "AWS::ApplicationAutoScaling::ScalableTarget",
+            "DependsOn": "service",
+            "Properties": {
+                "MaxCapacity": 2,
+                "MinCapacity": 1,
+                "ResourceId": {
+                    "Fn::Join": [
+                        "",
+                        [
+                            "service/",
+                            {
+                                "Ref": "ECSCluster"
+                            },
+                            "/",
+                            {
+                                "Fn::GetAtt": [
+                                    "service",
+                                    "Name"
+                                ]
+                            }
+                        ]
+                    ]
+                },
+                "RoleARN": {
+                    "Fn::GetAtt": [
+                        "AutoscalingRole",
+                        "Arn"
+                    ]
+                },
+                "ScalableDimension": "ecs:service:DesiredCount",
+                "ServiceNamespace": "ecs"
+            }
+        },
+        "ServiceScalingPolicy": {
+            "Type": "AWS::ApplicationAutoScaling::ScalingPolicy",
+            "Properties": {
+                "PolicyName": "AStepPolicy",
+                "PolicyType": "StepScaling",
+                "ScalingTargetId": {
+                    "Ref": "ServiceScalingTarget"
+                },
+                "StepScalingPolicyConfiguration": {
+                    "AdjustmentType": "PercentChangeInCapacity",
+                    "Cooldown": 60,
+                    "MetricAggregationType": "Average",
+                    "StepAdjustments": [
+                        {
+                            "MetricIntervalLowerBound": 0,
+                            "ScalingAdjustment": 200
+                        }
+                    ]
+                }
+            }
+        },
+        "ALB500sAlarmScaleUp": {
+            "Type": "AWS::CloudWatch::Alarm",
+            "Properties": {
+                "EvaluationPeriods": "1",
+                "Statistic": "Average",
+                "Threshold": "10",
+                "AlarmDescription": "Alarm if our ALB generates too many HTTP 500s.",
+                "Period": "60",
+                "AlarmActions": [
+                    {
+                        "Ref": "ServiceScalingPolicy"
+                    }
+                ],
+                "Namespace": "AWS/ApplicationELB",
+                "Dimensions": [
+                    {
+                        "Name": "LoadBalancer",
+                        "Value": {
+                            "Fn::GetAtt": [
+                                "ECSALB",
+                                "LoadBalancerFullName"
+                            ]
+                        }
+                    }
+                ],
+                "ComparisonOperator": "GreaterThanThreshold",
+                "MetricName": "HTTPCode_ELB_5XX_Count"
+            }
+        },
+        "EC2Role": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyName": "ecs-service",
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "ecs:CreateCluster",
+                                        "ecs:DeregisterContainerInstance",
+                                        "ecs:DiscoverPollEndpoint",
+                                        "ecs:Poll",
+                                        "ecs:RegisterContainerInstance",
+                                        "ecs:StartTelemetrySession",
+                                        "ecs:Submit*",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents"
+                                    ],
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "AutoscalingRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "application-autoscaling.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyName": "service-autoscaling",
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "application-autoscaling:*",
+                                        "cloudwatch:DescribeAlarms",
+                                        "cloudwatch:PutMetricAlarm",
+                                        "ecs:DescribeServices",
+                                        "ecs:UpdateService"
+                                    ],
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "EC2InstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "EC2Role"
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "ecsservice": {
+            "Value": {
+                "Ref": "service"
+            }
+        },
+        "ecscluster": {
+            "Value": {
+                "Ref": "ECSCluster"
+            }
+        },
+        "ECSALB": {
+            "Description": "Your ALB DNS URL",
+            "Value": {
+                "Fn::Join": [
+                    "",
+                    [
+                        {
+                            "Fn::GetAtt": [
+                                "ECSALB",
+                                "DNSName"
+                            ]
+                        }
+                    ]
+                ]
+            }
+        },
+        "taskdef": {
+            "Value": {
+                "Ref": "taskdefinition"
+            }
+        }
+    }
+}
+					</script></code></pre>
+
+            <aside class="notes">Verbose and error prone</aside>
+          </section>
+          <!-- CDK -->
+          <section data-auto-animate>
+            <h4>What CDK / IaC?</h4>
+            <ul>
+              <li>
+                Infrastructure as Code (IaC)
+                <br />
+                [<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://www.puppet.com/why-puppet/about-puppet#paragraph-1320"
+                  >2009, puppet</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://en.wikipedia.org/wiki/Progress_Chef"
+                >
+                  2009, chef</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://en.wikipedia.org/wiki/Ansible_(software)"
+                >
+                  2012, ansible</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://github.com/hashicorp/terraform/releases/tag/v0.1.0"
+                >
+                  2012, tf v0.1.0</a
+                >,<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://github.com/hashicorp/terraform/releases/tag/v1.0.0"
+                >
+                  2021, tf v1.0.0</a
+                >]
+              </li>
+              <li>
+                AWS Cloud Formation [<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/ReleaseHistory.html"
+                  >20011, aws cf</a
+                >]
+              </li>
+              <li>
+                AWS Cloud Development Kit (CDK)[<a
+                  style="font-size: medium"
+                  target="_blank"
+                  href="https://github.com/aws/aws-cdk"
+                  >20011, aws cf</a
+                >]
+                <br />
+              </li>
+            </ul>
+
+            <aside class="notes">
+              Abstraction layer on top of CloudFormation
+            </aside>
+          </section>
+          <!-- CDK Example -->
+          <section data-auto-animate>
+            <p style="font-size: large">
+              Cloud Formation:
+              <span>
+                ECS container with autoscaling and an application load
+                balancer</span
+              >
+            </p>
+            <pre><code class="hljs typescript"><script type="text/template">
+export class MyEcsConstructStack extends Stack {
+  constructor(scope: App, id: string, props?: StackProps) {
+    super(scope, id, props);
+
+    const vpc = new ec2.Vpc(this, "MyVpc", {
+      maxAzs: 3 // Default is all AZs in region
+    });
+
+    const cluster = new ecs.Cluster(this, "MyCluster", {
+      vpc: vpc
+    });
+
+    // Create a load-balanced Fargate service and make it public
+    new ecs_patterns.ApplicationLoadBalancedFargateService(this, "MyFargateService", {
+      cluster: cluster, // Required
+      cpu: 512, // Default is 256
+      desiredCount: 6, // Default is 1
+      taskImageOptions: { image: ecs.ContainerImage.fromRegistry("amazon/amazon-ecs-sample") },
+      memoryLimitMiB: 2048, // Default is 512
+      publicLoadBalancer: true // Default is false
+    });
+  }
+}
+					</script></code></pre>
+            <aside class="notes">
+              Same as previous CloudFormation template (generates the same
+              template)
+            </aside>
+          </section>
+          <!-- Why CDK -->
+          <section>
+            <h3>Why CDK / IaC?</h3>
+
+            <ul style="text-align: left">
+              <li class="fragment">
+                [IaC]: Automation, efficiency, scalability, version control,
+                auditing, collaboration, knowledge sharing, reproducibility,
+                disaster recovery, documentation, ci/cd, testing, security
+              </li>
+              <li class="fragment">
+                [CDK]: DevOps tools (<a
+                  target="_blank"
+                  href="https://www.pulumi.com/"
+                  >Terraform</a
+                >,
+                <a target="_blank" href="https://terragrunt.gruntwork.io/" a
+                  >Terragrunt</a
+                >,
+                <a target="_blank" href="https://aws.amazon.com/cloudformation/"
+                  >CloudFormation</a
+                >) / Dev tools (<a
+                  target="_blank"
+                  href="https://www.pulumi.com/"
+                  >Pulumi</a
+                >,
+                <a
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/cdk/v2/guide/home.html"
+                  >CDK</a
+                >)
+              </li>
+              <li class="fragment">
+                <a
+                  target="_blank"
+                  href="https://www.casperfeng.com/blog/imperative-vs-declarative-iac-ansible-and-terraform-insights"
+                  >Declarative</a
+                >
+                (💪 Idempotent) vs Imperative
+              </li>
+            </ul>
+
+            <aside class="notes">
+              Highlight key features and benefits
+              <br />
+              [CDK] - Native integration, AWS best practices, AWS support
+              <br />
+              [Pulumi] - Setup
+              <br />
+              [Declarative] - Idempotency, Readability, dependency resolution,
+              immutable and abstraction
+            </aside>
+          </section>
+          <!-- When CDK -->
+          <section>
+            <h3>When CDK?</h3>
+            <p class="fragment">Always?</p>
+
+            <aside class="notes">Always</aside>
+          </section>
+          <!-- Who CDK -->
+          <section>
+            <h3>Who CDK?</h3>
+            <p class="fragment">Shared?</p>
+
+            <aside class="notes">Dev + DevOps</aside>
+          </section>
+          <!-- How CDK -->
+          <section>
+            <h3>How CDK?</h3>
+
+            <aside class="notes">Project</aside>
+          </section>
+        </section>
+
+        <!-- ⚗️ Project -->
+        <!-- App, Stack and Constructs -->
+        <section>
+          <h3>App, Stack and Constructs</h3>
+          <img src="assets/AWSCDKDiagram.png" alt="aws-app-stack-constructs" />
+
+          <aside class="notes">
+            Tree structure
+            <br />
+            Stack is deployable
+            <br />
+            Constructs L1, L2 and L3
+          </aside>
+        </section>
+
+        <section>
+          <h3>Project ⚗️</h3>
+          <img src="assets/goal-arch.drawio.png" alt="project" />
+
+          <aside class="notes">Replace ECS + kinesis. SNS exists</aside>
+        </section>
+
+        <!-- Project Setup -->
+        <section>
+          <h3>CDK Project Setup</h3>
+          <ul style="text-align: left">
+            <li>
+              CDK
+              <a target="_blank" href="https://docs.aws.amazon.com/cdk/api/v2/"
+                >Documentation</a
+              >
+              <code>aws-cdk-lib</code>
+            </li>
+            <li>
+              <a
+                target="_blank"
+                href="https://docs.aws.amazon.com/cdk/v2/guide/hello_world.html"
+                >Create new</a
+              >
+              project
+              <ul>
+                <li>
+                  <span><code>$ npm init -y</code></span>
+                </li>
+                <li><code>$ npm i aws-cdk-lib constructs</code></li>
+              </ul>
+            </li>
+            <li>
+              CDK
+              <a
+                target="_blank"
+                href="https://docs.aws.amazon.com/cdk/v2/guide/cli.html#cli-config"
+                ><code>cdk.json</code></a
+              >
+              config
+            </li>
+            <li>
+              <code>bin</code>:
+              <a
+                target="_blank"
+                href="https://docs.aws.amazon.com/cdk/v2/guide/apps.html"
+                >App</a
+              >
+            </li>
+          </ul>
+
+          <aside class="notes">
+            [Documentation] - Bookmark
+            <br />
+            [Create new] - 2 dependencies
+            <br />
+            [cdk.json] - Main CDK configuration
+            <br />
+            Code - File structure
+          </aside>
+        </section>
+        <!-- CDK CLI -->
+        <section>
+          <h3>CDK CLI</h3>
+          <ul style="text-align: left">
+            <li><code>cdk list</code></li>
+            <li><code>cdk synth</code></li>
+            <li><code>cdk synth</code></li>
+          </ul>
+
+          <aside class="notes">
+            Navigate project, synth, deploy and AWS Console
+          </aside>
+        </section>
+        <!-- TDD SNS -->
+        <section>
+          <h3>Topic</h3>
+          <!-- How to test? -->
+          <section>
+            <h4>How to Test?</h4>
+            <div style="text-align: left">
+              <p class="fragment">
+                Jest (FW) + assertion lib (<a
+                  href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.assertions-readme.html"
+                  >aws-cdk-lib.assertions</a
+                >)
+              </p>
+              <p class="fragment">
+                <code>got = ./cdk.out/*template.json</code>
+              </p>
+              <p class="fragment">
+                <code>want = </code
+                ><a
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sns-topic.html#aws-resource-sns-topic-syntax"
+                  >CloudFormation <code>AWS::SNS::Topic</code></a
+                >
+              </p>
+            </div>
+
+            <aside class="notes">Simple test. They exist already</aside>
+          </section>
+          <!-- Test for Topic name and amount -->
+          <section>
+            <ul class="fragment">
+              <li>
+                <a
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sns-topic.html#aws-resource-sns-topic-syntax"
+                  ><code>AWS::SNS::Topic</code></a
+                >
+                amount and and <code>TopicName</code>
+              </li>
+            </ul>
+            <pre
+              class="fragment"
+            ><code  data-line-numbers="1-3|5|7|8-14|16-25|26-27|29-32|34-37|39-47" class="hljs typescript"><script type="text/template">// test.ts
+import { App } from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+
+import { Subscriber } from './workshop';
+
+let template: Template;
+
+beforeAll(() => {
+  const app = new App();
+  const stack = new Subscriber(app, 'test-stack', { topicName: 'my-topic-name' });
+
+  template = Template.fromStack(stack); // 👈 got
+});
+
+describe('MyStack', () => {
+  test('should contain resources', () => {
+    template.resourceCountIs('AWS::SNS::Topic', 1);
+
+    template.hasResourceProperties('AWS::SNS::Topic', {
+      TopicName: 'my-topic-name',
+    });
+  });
+});
+
+// ✅ Amount
+template.resourceCountIs('AWS::SNS::Topic', 1);
+
+// ✅ TopicName
+template.hasResourceProperties('AWS::SNS::Topic', {
+  TopicName: topicName,
+});
+
+// implementation.ts
+interface RedpillUpdateWorderProps {
+  topicName: string;
+}
+
+export class Subscriber extends Stack {
+  constructor(scope: Construct, id: string, props: SubscriberProps) {
+    super(scope, id, props);
+
+    const { topicName } = props;
+
+    new Topic(this, 'my-topic', { topicName });
+  }
+}
+                    </script></code></pre>
+
+            <p class="fragment">Deploy 🚀</p>
+
+            <aside class="notes">Erase from bin and go to lib</aside>
+          </section>
+        </section>
+        <!-- TDD SQS -->
+        <section>
+          <h3>SQS</h3>
+          <section>
+            <ul class="fragment">
+              <li>
+                <a
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queue.html#aws-resource-sqs-queue-syntax"
+                  ><code>AWS::SQS::Queue</code></a
+                >
+                amount and and <code>QueueName</code>
+              </li>
+            </ul>
+            <pre
+              class="fragment"
+            ><code  data-line-numbers="2-6|8-13" class="hljs typescript"><script type="text/template">// test.ts
+template.resourceCountIs('AWS::SQS::Queue', 1);
+
+template.hasResourceProperties('AWS::SQS::Queue', {
+    QueueName: Match.stringLikeRegexp(STACK_ID),
+});
+
+// implementation.ts
+// ...
+
+const q = new Queue(this, `${id}-queue`, {
+  queueName: `${id}-queue`
+});
+
+</script></code></pre>
+          </section>
+          <!-- SQS Policy -->
+          <section>
+            <ul class="fragment">
+              <li>
+                <a
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queuepolicy.html#aws-resource-sqs-queuepolicy-syntax"
+                  ><code>AWS::SQS::QueuePolicy</code></a
+                >
+                subscribe to SNS
+                <p style="font-size: large">
+                  <code>AWS::SQS::QueuePolicy</code> /
+                  <code>AWS::SNS::Subscription</code>
+                </p>
+              </li>
+            </ul>
+            <pre
+              class="fragment"
+            ><code  data-line-numbers="21-26|5-19|1-3|28-31" class="hljs typescript"><script type="text/template">// test.ts
+template.resourceCountIs('AWS::SNS::Subscription', 1);
+template.resourceCountIs('AWS::SQS::QueuePolicy', 1);
+
+const capturePolicy = new Capture();
+
+template.hasResourceProperties('AWS::SQS::QueuePolicy', {
+    PolicyDocument: {
+    Statement: [
+        {
+        Condition: {
+            ArnEquals: {
+            'aws:SourceArn': { Ref: capturePolicy },
+            },
+        },
+        },
+    ],
+    },
+});
+
+template.hasResourceProperties('AWS::SNS::Subscription', {
+    Protocol: 'sqs',
+    TopicArn: {
+        Ref: "XXX", // 👈? capturePolicy
+    },
+});
+
+// implementation.ts
+// ...
+
+this.topic.addSubscription(new SqsSubscription(q));
+
+            </script></code></pre>
+          </section>
+        </section>
+        <!-- Add Lambda + source event SQS -->
+        <section>
+          <h3>Lambda</h3>
+          <!-- Lambda - Count -->
+          <section>
+            <div class="fragments"></div>
+            <ul class="fragment">
+              <li>
+                <a
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-function.html#aws-resource-lambda-function-syntax"
+                  ><code>AWS::Lambda::Function</code></a
+                >
+                amount and and name
+              </li>
+            </ul>
+            <pre
+              class="fragment"
+            ><code  data-line-numbers="2-6|8-14" class="hljs typescript"><script type="text/template">// test.ts
+template.resourceCountIs('AWS::Lambda::Function', 1);
+
+template.hasResourceProperties('AWS::Lambda::Function', {
+    FunctionName: Match.stringLikeRegexp(STACK_ID),
+});
+
+// implementation.ts
+const h = new NodejsFunction(this, `${id}-handler`, {
+    runtime: Runtime.NODEJS_20_X,
+    functionName: `${id}-handler`,
+    entry: `${__dirname}/lambda/index.ts`,
+    environment: {},
+});
+            </script></code></pre>
+          </section>
+          <!-- Lambda - Event Source Mapping -->
+          <section>
+            <div class="fragments"></div>
+            <ul class="fragment">
+              <li>
+                <a
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-eventsourcemapping.html#aws-resource-lambda-eventsourcemapping-syntax"
+                  ><code>AWS::Lambda::EventSourceMapping</code></a
+                >
+              </li>
+              <p style="font-size: large">
+                <code>AWS::Lambda::EventSourceMapping</code> /
+                <code>AWS::SQS::QueuePolicy</code>
+              </p>
+            </ul>
+            <pre
+              class="fragment"
+            ><code  data-line-numbers="2-15|18-22" class="hljs typescript"><script type="text/template">// test.ts
+template.resourceCountIs('AWS::Lambda::EventSourceMapping', 1);
+template.resourceCountIs('AWS::SQS::QueuePolicy', 1);
+
+const captureQueuePolicy = new Capture();
+
+template.hasResourceProperties('AWS::SQS::QueuePolicy', {
+    Queues: [{ Ref: captureQueuePolicy }],
+});
+
+template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+    EventSourceArn: {
+        'Fn::GetAtt': Match.arrayWith([captureQueuePolicy])
+    },
+});
+
+// iplementation.ts
+h.addEventSource(
+    new SqsEventSource(q, {
+    reportBatchItemFailures: true,
+    }),
+);
+            </script></code></pre>
+          </section>
+          <!-- Lambda - Code -->
+          <section>
+            <div class="fragments"></div>
+            <ul class="fragment">
+              <li>
+                <a
+                  target="_blank"
+                  href="https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/sqs/command/DeleteMessageBatchCommand/"
+                  >SDK - SQS DeleteMessageBatchCommand</a
+                >
+                delete messages after processing
+              </li>
+            </ul>
+            <pre
+              class="fragment"
+            ><code data-line-numbers="1-8|10-14|16|16-21|22-24|26-32|35-49|51-55|57-70" class="hljs typescript"><script type="text/template">import {
+    SQSClient,
+    DeleteMessageBatchCommand,
+    DeleteMessageBatchRequestEntry,
+    DeleteMessageBatchCommandOutput,
+    } from '@aws-sdk/client-sqs';
+import { SQSEvent } from 'aws-lambda';
+import pino from 'pino';
+
+let sqsClient = new SQSClient({ region: process.env.REGION });
+const logger = pino({
+    name: 'redpillUpdates',
+    level: process.env.LOG_LEVEL || 'info'
+});
+
+export const handler = async (event: SQSEvent) => {
+    const queueUrl = process.env.QUEUE_URL;
+    
+    if (!queueUrl) {
+        return Promise.reject('missing env vars');
+    }
+    if (!sqsClient) {
+        sqsClient = new SQSClient({ region: process.env.REGION });
+    }
+    
+    // 🦄 Process incoming events
+    const processResults = run(event);
+    
+    // 🗑️ Delete successfull events
+    const response = await batchDelete(sqsClient, queueUrl, processResults);
+    
+    logger.info(response, 'response from event');
+};
+    
+const run = (event: SQSEvent): DeleteMessageBatchRequestEntry[] => {
+    return event.Records.map(record => { // 👈🔄
+        const body = JSON.parse(record.body);
+        logger.info(body, 'incoming body');
+    
+        const success = processRecord(body); // 👈🦄
+        if (success) {
+            return {
+                ReceiptHandle: record.receiptHandle,
+                Id: record.messageId
+            };
+        }
+        return { ReceiptHandle: '', Id: '' };
+    });
+};
+
+// 👇🦄
+const processRecord = (body: unknown): boolean => {
+    logger.info(body, 'body processed');
+    return true;
+};
+
+// 🗑️
+const batchDelete = async (
+    client: SQSClient,
+    queueUrl: string,
+    processResults: DeleteMessageBatchRequestEntry[],
+): Promise<DeleteMessageBatchCommandOutput> => {
+    const input = {
+        QueueUrl: queueUrl,
+        Entries: processResults,
+    };
+    
+    const command = new DeleteMessageBatchCommand(input);
+    return await client.send(command);
+};
+
+            </script></code></pre>
+          </section>
+          <section>
+            <h3>
+              <a
+                href="https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-command-reference.html"
+                >SAM</a
+              >
+            </h3>
+            <pre><code class="hljs bash"><script type="text/template"># Generate Lambda payload events
+sam local generate-event sqs receive-message
+
+# Invoke Lambda
+sam local invoke \
+    -t cdk.out/TEMPLATE-NAME.template.json \
+    -e lib/PATH_TO_EVENT.json \
+    FUNCTION_NAME
+            </script></code></pre>
+          </section>
+        </section>
+        <!-- Custom Construct [orders, contacts, users] -->
+        <section>
+          <h3>Custom Construct</h3>
+          <code>[orders-updated, contacts-updated, users-updated]</code>
+          <ul class="fragments">
+            <li class="fragment">
+              Add <code>contacts-updated</code> and <code>users-updated</code>
+            </li>
+            <li class="fragment">Update amount of resources in tests</li>
+            <li class="fragment">Convert to <code>Construct</code></li>
+          </ul>
+
+          <aside class="notes">
+            Pass array of topicNames + change tests and refacor worker into
+            Construct
+          </aside>
+        </section>
+        <!-- Deploy to prod -->
+
+        <!-- 🏁 Closing -->
+        <section>
+          <h3>Use Cases</h3>
+          <section>
+            <h4>
+              <a href="https://github.com/eliberty/crm-svc">CRM 🗣️</a>
+            </h4>
+          </section>
+          <section>
+            <p>
+              <a href="https://github.com/eliberty/datalake-infra"
+                >Data Lake 💦</a
+              >
+            </p>
+          </section>
+          <section>
+            <h4>
+              <a href="https://www.youtube.com/watch?v=ugtsm3Z3VgU"
+                >Buy With Prime 💰</a
+              >
+            </h4>
+            <img
+              src="./assets/arch-bwp.png"
+              alt="architecture buy with prime"
+            />
+          </section>
+        </section>
+
+        <!-- References -->
+        <section>
+          <h1>CDK 🏗️</h1>
+        </section>
+        <!-- <section>
+          <h2>References</h2>
+          <ul>
+            <li>
+              <a
+                target="_blank"
+                href="https://github.com/aws/aws-cdk/blob/main/packages/%40aws-cdk/cx-api/FEATURE_FLAGS.md"
+                >FEATURE_FLAGS.md</a
+              >
+            </li>
+            <li>
+              <a
+                target="_blank"
+                href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html"
+                >CloudFormation Resource Reference</a
+              >
+            </li>
+          </ul>
+        </section> -->
+      </div>
+    </div>
+
+    <script src="dist/reveal.js"></script>
+    <script src="plugin/notes/notes.js"></script>
+    <script src="plugin/markdown/markdown.js"></script>
+    <script src="plugin/highlight/highlight.js"></script>
+    <script>
+      // More info about initialization & config:
+      // - https://revealjs.com/initialization/
+      // - https://revealjs.com/config/
+      Reveal.initialize({
+        hash: true,
+
+        // Learn about plugins: https://revealjs.com/plugins/
+        plugins: [RevealMarkdown, RevealHighlight, RevealNotes],
+      });
+    </script>
+  </body>
+</html>
