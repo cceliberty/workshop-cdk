@@ -28,6 +28,12 @@ Usefull VSCode shortcuts (Settings > Keyboard Shortcuts):
 - Trigger Suggest
 - Toggle terminal
 
+Prompt options (easily identify AWS account):
+
+- [Starship](https://starship.rs/)
+
+![starship](./imgs/starship.png)
+
 # 🔐 AWS Configuration
 
 ## AWS Credential Configuration:
